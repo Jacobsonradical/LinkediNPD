@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="52" fill="#0A66C2"/>
+  <!-- straight-faced corporate "in", undercut by a clown nose -->
+  <g fill="#fff">
+    <rect x="54" y="100" width="30" height="106" rx="6"/>
+    <circle cx="69" cy="66" r="19"/>
+    <path d="M110 206V100h29v15c8-11 21-18 36-18 27 0 46 18 46 49v60h-31v-55c0-17-8-27-23-27-16 0-26 11-26 30v52z"/>
+  </g>
+  <circle cx="69" cy="66" r="13" fill="#E8112D"/>
+</svg>

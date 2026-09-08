@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fake feed (2026 markup, no data-view-name)</title>
+<!--
+  The same six cases as the other fixtures, but modelled on the variant the
+  live site served after scrolling on 2026-09-08: the virtualised list had
+  re-mounted the cards *without* any data-view-name attributes. Only the
+  "expanded..." wrapper ids and the aria-labels were left to anchor on, so
+  that is all this file provides.
+-->
+<body>
+<div role="list" data-testid="mainFeed">
+
+<!-- 1. Ordinary post -->
+<div role="listitem"><div id="expandedBBB1001FeedType_MAIN_FEED_RELEVANCE">
+  <button aria-label="Open control menu for post by Peter Smith">...</button>
+  <a href="#"><div>Peter Smith • 2nd</div></a>
+  <div>Thrilled to announce.</div>
+  <a href="#">Someone Else and 84 others reacted</a>
+  <button type="button" aria-label="Reaction button state: no reaction">Like</button>
+</div></div>
+
+<!-- 2. Someone else's post that Peter reacted to; header is a plain <p> -->
+<div role="listitem"><div id="expandedBBB1002FeedType_MAIN_FEED_RELEVANCE">
+  <p><a href="#">Peter Smith</a> and 3 others like this</p>
+  <button aria-label="Open control menu for post by Anna Jones">...</button>
+  <div>Humbled.</div>
+  <button type="button" aria-label="Reaction button state: no reaction">Like</button>
+</div></div>
+
+<!-- 3. Paid placement -->
+<div role="listitem"><div id="expandedBBB1003FeedType_MAIN_FEED_RELEVANCE">
+  <button aria-label="Open control menu for post by Ad Corp">...</button>
+  <span>Promoted</span>
+  <div>Buy our thing.</div>
+  <button type="button" aria-label="Reaction button state: no reaction">Like</button>
+</div></div>
+
+<!-- 4. Out-of-network filler -->
+<div role="listitem"><div id="expandedBBB1004FeedType_MAIN_FEED_RELEVANCE">
+  <span>Suggested</span>
+  <button aria-label="Open control menu for post by Stranger Danger">...</button>
+  <button type="button" aria-label="Reaction button state: no reaction">Like</button>
+</div></div>
+
+<!-- 5. Already liked -->
+<div role="listitem"><div id="expandedBBB1005FeedType_MAIN_FEED_RELEVANCE">
+  <button aria-label="Open control menu for post by Old Friend">...</button>
+  <button type="button" aria-label="Reaction button state: Like">Like</button>
+</div></div>
+
+<!-- 6. No Like button -->
+<div role="listitem"><div id="expandedBBB1006FeedType_MAIN_FEED_RELEVANCE">
+  <button aria-label="Open control menu for post by Hiring Bot">...</button>
+  <a href="#">Read more</a>
+</div></div>
+
+</div>
+<div style="height:3000px"></div>
+<script>
+  document.querySelectorAll("button[aria-label^='Reaction button state']").forEach((b) => {
+    b.addEventListener("click", () => {
+      const liked = !b.getAttribute("aria-label").endsWith("no reaction");
+      b.setAttribute("aria-label", liked ? "Reaction button state: no reaction"
+                                         : "Reaction button state: Like");
+    });
+  });
+</script>
+</body>

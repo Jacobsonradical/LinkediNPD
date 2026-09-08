@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="52" fill="#0A66C2"/>
+  <!-- "in" admiring its own reflection: the NPD joke, straight -->
+  <g fill="#fff">
+    <rect x="60" y="70" width="26" height="72" rx="5"/>
+    <path d="M104 142V70h25v11c7-8 17-13 29-13 22 0 38 14 38 40v34h-26v-31c0-14-7-22-19-22-13 0-21 9-21 25v29z"/>
+  </g>
+  <line x1="34" y1="156" x2="222" y2="156" stroke="#fff" stroke-width="4" opacity=".55"/>
+  <g fill="#fff" opacity=".3" transform="translate(0,312) scale(1,-1)">
+    <rect x="60" y="70" width="26" height="72" rx="5"/>
+    <path d="M104 142V70h25v11c7-8 17-13 29-13 22 0 38 14 38 40v34h-26v-31c0-14-7-22-19-22-13 0-21 9-21 25v29z"/>
+  </g>
+</svg>

@@ -1,0 +1,60 @@
+# LinkediNPD settings. Copy this file to config/config.yml and edit.
+# config/config.yml is gitignored so your filter lists stay private.
+
+# ---------------------------------------------------------------------------
+# What to like
+# ---------------------------------------------------------------------------
+filters:
+  # How aggressive we are:
+  #   all    - like everything the feed shows us
+  #   except - like everything, minus the block lists below
+  #   stalk  - like nothing, except what matches the allow lists below
+  mode: except
+
+  # Names are matched case-insensitively as substrings, so "Peter" matches
+  # "Peter Smith" and also "Peterson". Keep them specific enough to be useful.
+
+  # People whose own posts we care about.
+  poster_allow: []
+  poster_block: []
+
+  # People whose *likes* we follow. If Peter liked a post, the feed tells us so
+  # in the little grey line above the post, and that is what we match on.
+  liker_allow: []
+  liker_block: []
+
+  # LinkedIn pads the feed with "Suggested" / "Promoted" / "Recommended" posts
+  # from outside your network. Almost always worth skipping.
+  skip_suggested: true
+
+# ---------------------------------------------------------------------------
+# Pacing. Deliberately slow - this is the whole point of the project.
+# ---------------------------------------------------------------------------
+pacing:
+  # Wait this long between two likes. A value is picked at random in the range
+  # every time, so we never fall into a fixed rhythm.
+  min_seconds_between_likes: 300
+  max_seconds_between_likes: 600
+
+  # Hard stop per calendar day (container local time). Counter resets at midnight.
+  max_likes_per_day: 40
+
+  # Once we have scrolled this far without finding anything new, or the feed
+  # has run out, go back to the top and reload.
+  max_scrolls_per_pass: 25
+
+  # Cooldown after a full pass over the feed before starting the next one.
+  min_seconds_between_passes: 900
+  max_seconds_between_passes: 1800
+
+# ---------------------------------------------------------------------------
+# Browser
+# ---------------------------------------------------------------------------
+browser:
+  # LinkedIn renders differently at small widths; this is a normal laptop size.
+  viewport_width: 1440
+  viewport_height: 900
+  locale: en-US
+
+  # Start paused so nothing is liked until you have looked at the dashboard.
+  start_paused: false

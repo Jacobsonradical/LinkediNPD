@@ -1,0 +1,35 @@
+services:
+  linkedinpd:
+    build: .
+    image: linkedinpd:latest
+    container_name: linkedinpd
+    # Comes back after crashes and reboots; `docker compose stop` is the way
+    # to end it, and that sticks.
+    restart: unless-stopped
+
+    # 127.0.0.1 on purpose. Both of these give control over a logged-in
+    # LinkedIn session, so neither should ever listen on the network.
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8765}:8765"
+      - "127.0.0.1:${NOVNC_PORT:-6080}:6080"
+
+    environment:
+      TZ: ${TZ:-UTC}
+      # So the links the container prints and serves use the ports you chose.
+      DASHBOARD_PORT: ${DASHBOARD_PORT:-8765}
+      NOVNC_PORT: ${NOVNC_PORT:-6080}
+
+    volumes:
+      # Chromium profile, like history and the dashboard token. Losing this
+      # means logging in again, so it is a named volume rather than a temp dir.
+      - linkedinpd-state:/state
+      # Live-mounted, writable: the dashboard's Settings panel saves
+      # config/config.yml here, and selector patches need no rebuild.
+      - ./config:/app/config
+
+    # Chromium is greedy with shared memory and will crash tabs on the 64MB
+    # Docker gives a container by default.
+    shm_size: 1gb
+
+volumes:
+  linkedinpd-state:

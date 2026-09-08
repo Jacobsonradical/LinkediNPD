@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="52" fill="#0A66C2"/>
+  <!-- the "in" wordmark, with the dot over the i swapped for a thumbs-up -->
+  <rect x="52" y="104" width="30" height="104" rx="6" fill="#fff"/>
+  <path d="M108 208V104h29v14c8-11 20-17 34-17 26 0 45 17 45 48v59h-30v-54c0-17-8-26-22-26-15 0-26 10-26 29v51z" fill="#fff"/>
+  <g transform="translate(52,38) scale(1.05)">
+    <path d="M8 22h8v22H8a4 4 0 0 1-4-4V26a4 4 0 0 1 4-4z" fill="#fff"/>
+    <path d="M20 22c4-3 7-8 7-14a4 4 0 0 1 8 0c0 4-1 8-3 11h10a5 5 0 0 1 5 6l-3 15a6 6 0 0 1-6 5H20z" fill="#fff"/>
+  </g>
+</svg>

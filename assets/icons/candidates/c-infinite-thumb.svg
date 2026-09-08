@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="52" fill="#0A66C2"/>
+  <!-- a thumbs-up caught in an endless loop: the automation, not the culture -->
+  <circle cx="128" cy="128" r="82" fill="none" stroke="#fff" stroke-width="9"
+          stroke-linecap="round" stroke-dasharray="330 185" opacity=".85"
+          transform="rotate(-60 128 128)"/>
+  <path d="M196 74l16 6-7 16z" fill="#fff"/>
+  <g transform="translate(88,80) scale(2.6)">
+    <path d="M2 12h7v18H2a2 2 0 0 1-2-2V14a2 2 0 0 1 2-2z" fill="#fff"/>
+    <path d="M12 12c4-3 6-7 6-12a3 3 0 0 1 7 0c0 4-1 6-2 9h9a4 4 0 0 1 4 5l-3 13a5 5 0 0 1-5 3H12z" fill="#fff"/>
+  </g>
+</svg>

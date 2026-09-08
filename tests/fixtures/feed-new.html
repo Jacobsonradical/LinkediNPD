@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fake feed (2026 markup)</title>
+<!--
+  Stand-in for LinkedIn's current feed, mirroring the structure seen on the
+  live site on 2026-09-08: hashed class names (omitted here because they carry
+  no meaning), data-view-name on everything semantic, a per-post ancestor id
+  starting with "expanded", and a Like button whose state is in its aria-label.
+  Same six cases as feed-legacy.html so the two can share one test file.
+-->
+<body>
+<div role="list" data-testid="mainFeed">
+
+<!-- 1. Ordinary post, nothing special about it -->
+<div role="listitem"><div id="expandedAAA1001FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <a data-view-name="feed-actor" href="#"><div><div>Peter Smith • 2nd</div></div></a>
+    <div data-view-name="feed-commentary">Thrilled to announce.</div>
+    <a data-view-name="feed-reaction-count" href="#">Someone Else and 84 others reacted</a>
+    <button type="button" data-view-name="reaction-button" aria-label="Reaction button state: no reaction">Like</button>
+  </div>
+</div></div>
+
+<!-- 2. Someone else's post that Peter reacted to -->
+<div role="listitem"><div id="expandedAAA1002FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <p><span><a data-view-name="feed-header-text" href="#">Peter Smith</a> and 3 others like this</span></p>
+    <a data-view-name="feed-actor" href="#"><div><div>Anna Jones • 3rd+</div></div></a>
+    <div data-view-name="feed-commentary">Humbled.</div>
+    <button type="button" data-view-name="reaction-button" aria-label="Reaction button state: no reaction">Like</button>
+  </div>
+</div></div>
+
+<!-- 3. Paid placement: standalone "Promoted" label, no header line -->
+<div role="listitem"><div id="expandedAAA1003FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <a data-view-name="feed-actor" href="#"><div><div>Ad Corp</div></div></a>
+    <span>Promoted</span>
+    <div data-view-name="feed-commentary">Buy our thing.</div>
+    <button type="button" data-view-name="reaction-button" aria-label="Reaction button state: no reaction">Like</button>
+  </div>
+</div></div>
+
+<!-- 4. Out-of-network filler -->
+<div role="listitem"><div id="expandedAAA1004FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <span>Suggested</span>
+    <a data-view-name="feed-actor" href="#"><div><div>Stranger Danger</div></div></a>
+    <button type="button" data-view-name="reaction-button" aria-label="Reaction button state: no reaction">Like</button>
+  </div>
+</div></div>
+
+<!-- 5. Already liked: the label names the reaction instead of "no reaction" -->
+<div role="listitem"><div id="expandedAAA1005FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <a data-view-name="feed-actor" href="#"><div><div>Old Friend • 1st</div></div></a>
+    <button type="button" data-view-name="reaction-button" aria-label="Reaction button state: Like">Like</button>
+  </div>
+</div></div>
+
+<!-- 6. A card with no Like button at all, e.g. a promo tile -->
+<div role="listitem"><div id="expandedAAA1006FeedType_MAIN_FEED_RELEVANCE">
+  <div data-view-name="feed-full-update">
+    <a data-view-name="feed-actor" href="#"><div><div>Hiring Bot</div></div></a>
+    <a data-view-name="feed-promo-primary-action" href="#">Read more</a>
+  </div>
+</div></div>
+
+</div>
+<div style="height:3000px"></div>
+<script>
+  // The live site swaps the label once its request returns; do the same so
+  // click_like's confirmation step is actually exercised on this markup.
+  document.querySelectorAll("[data-view-name='reaction-button']").forEach((b) => {
+    b.addEventListener("click", () => {
+      const liked = !b.getAttribute("aria-label").endsWith("no reaction");
+      b.setAttribute("aria-label", liked ? "Reaction button state: no reaction"
+                                         : "Reaction button state: Like");
+    });
+  });
+</script>
+</body>

@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fake feed</title>
+<!--
+  Stand-in for the LinkedIn feed, built to match the selectors in
+  config/selectors.yml. Not a scrape of the real site: just enough of the same
+  shape (containers, data-urn, actor title, context line, aria-pressed Like
+  button) to exercise scan_posts and click_like offline.
+-->
+<body>
+
+<!-- 1. Ordinary post, nothing special about it -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1001">
+  <div class="update-components-actor__title"><span aria-hidden="true">Peter Smith</span></div>
+  <button class="react-button__trigger" aria-label="React Like" aria-pressed="false">Like</button>
+</div>
+
+<!-- 2. Someone else's post that Peter reacted to -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1002">
+  <div class="update-components-header__text-view">Peter Smith and 3 others like this</div>
+  <div class="update-components-actor__title"><span aria-hidden="true">Anna Jones</span></div>
+  <button class="react-button__trigger" aria-label="React Like" aria-pressed="false">Like</button>
+</div>
+
+<!-- 3. Paid placement -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1003">
+  <div class="update-components-header__text-view">Promoted</div>
+  <div class="update-components-actor__title"><span aria-hidden="true">Ad Corp</span></div>
+  <button class="react-button__trigger" aria-label="React Like" aria-pressed="false">Like</button>
+</div>
+
+<!-- 4. Out-of-network filler -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1004">
+  <div class="update-components-header__text-view">Suggested</div>
+  <div class="update-components-actor__title"><span aria-hidden="true">Stranger Danger</span></div>
+  <button class="react-button__trigger" aria-label="React Like" aria-pressed="false">Like</button>
+</div>
+
+<!-- 5. Already liked in a previous session -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1005">
+  <div class="update-components-actor__title"><span aria-hidden="true">Old Friend</span></div>
+  <button class="react-button__trigger" aria-label="React Like" aria-pressed="true">Like</button>
+</div>
+
+<!-- 6. A card with no Like button at all, e.g. a job recommendation -->
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:1006">
+  <div class="update-components-actor__title"><span aria-hidden="true">Hiring Bot</span></div>
+</div>
+
+<div style="height:3000px"></div>
+<script>
+  // LinkedIn flips aria-pressed once its own request returns; do the same so
+  // click_like's confirmation step is actually exercised.
+  document.querySelectorAll("button.react-button__trigger").forEach((b) => {
+    b.addEventListener("click", () => {
+      b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    });
+  });
+</script>
+</body>

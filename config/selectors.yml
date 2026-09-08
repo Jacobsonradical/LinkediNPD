@@ -1,0 +1,123 @@
+# LinkedIn DOM selectors, kept out of the Python so they can be patched without
+# touching logic. When the engine reports "no posts matched any selector", fetch
+# GET /api/debug/page from the dashboard API and fix things here, then restart.
+#
+# Every entry is a list, tried in order; the first match wins, so old and new
+# markup can coexist while LinkedIn rolls a change out gradually.
+#
+# Strategy, as of 2026-09-08: LinkedIn's feed is now a build with hashed class
+# names ("_7a2e408f") that change on every deploy, so class selectors are
+# useless. Anchor on `data-view-name` and aria attributes instead - the
+# accessibility layer is the one thing a hashed build cannot scramble.
+
+# A single post card in the feed. The "expanded..." wrapper is present on every
+# variant of the new feed seen so far; data-view-name comes and goes as the
+# virtualised list re-mounts cards while scrolling, so it is only a fallback.
+post_container:
+  - "[id^='expanded']"
+  - "[data-view-name='feed-full-update']"
+  - "div.feed-shared-update-v2"                  # legacy markup
+  - "div[data-id^='urn:li:activity']"            # legacy markup
+
+# Stable identifier for a post, read as an attribute off the container itself.
+# The new feed no longer exposes the activity urn here; see post_id_ancestor.
+post_urn_attributes:
+  - "data-urn"
+  - "data-id"
+
+# New feed: the nearest ancestor whose id starts with "expanded" carries a
+# per-post token that we use as the identifier when no urn is available.
+post_id_ancestor: "[id^='expanded']"
+
+# The name of whoever wrote the post. First choice is the post's "..." menu
+# button, whose aria-label is "Open control menu for post by <name>" - the
+# name is taken from after that prefix, which is the steadiest source there is.
+post_author_label:
+  - "button[aria-label^='Open control menu for post by ']"
+post_author_label_prefix: "Open control menu for post by "
+
+post_author:
+  - "[data-view-name='feed-actor']"
+  - ".update-components-actor__title span[aria-hidden='true']"   # legacy
+  - ".update-components-actor__name"                              # legacy
+
+# New feed: the link naming the person in the grey line above a post
+# ("Peter Smith likes this"). The full sentence is its enclosing <p>.
+post_header_anchor:
+  - "[data-view-name='feed-header-text']"
+
+# When no header anchor exists, the header line is found as the first short
+# paragraph in the card mentioning a reaction. Only paragraphs up to this many
+# characters are considered, so a post body never gets mistaken for it.
+post_header_max_chars: 140
+
+# Legacy feed: the whole grey line as one element.
+post_context:
+  - ".update-components-header__text-view"
+  - ".update-components-header"
+
+# The Like button.
+like_button:
+  - "button[aria-label^='Reaction button state']"
+  - "[data-view-name='reaction-button']"
+  - "button.react-button__trigger"               # legacy
+  - "button[aria-label^='React Like']"           # legacy
+
+# New feed: the button has no aria-pressed. Its aria-label reads
+# "Reaction button state: no reaction" until you react, so anything else
+# means we (or the user) already reacted.
+like_button_unliked_marker: "no reaction"
+
+# A dead session gets redirected to one of these paths. Checked before any
+# selector, because the login page's markup has already changed once.
+logged_out_paths:
+  - "/login"
+  - "/authwall"
+  - "/checkpoint"
+  - "/uas/"
+
+# If scrolling stalls, a button matching this (case-insensitive regex) is
+# clicked before giving up - some feed versions end with "Show more" instead
+# of loading on scroll.
+load_more_button_text: "show more|load more|more feed|new posts"
+
+# Shown when the session is not logged in (legacy login page markup).
+login_marker:
+  - "form.login__form"
+  - "input#username"
+  - "button[data-litms-control-urn='login-submit']"
+
+# Standalone labels that mark a card as paid or algorithmic rather than from
+# your network. Matched as whole short text nodes, case-insensitively.
+suggested_markers:
+  - "Promoted"
+  - "Promoted by"
+  - "Suggested"
+  - "Recommended for you"
+
+# Same idea, but matched as substrings of the grey header line.
+suggested_keywords:
+  - "suggested"
+  - "promoted"
+  - "recommended for you"
+  - "based on your"
+  - "people you may know"
+  - "sponsored"
+
+# Phrases in the header line that mean "this person reacted to it". Used to
+# decide whether the named person counts as a liker for liker_allow / liker_block.
+# Both singular and plural forms are needed: LinkedIn writes "Peter likes this"
+# for one person but "Peter and 3 others like this" for several.
+reaction_keywords:
+  - "likes this"
+  - "like this"
+  - "liked this"
+  - "loves this"
+  - "love this"
+  - "celebrates this"
+  - "celebrate this"
+  - "found this insightful"
+  - "find this insightful"
+  - "reacted to this"
+  - "react to this"
+  - "reacted"

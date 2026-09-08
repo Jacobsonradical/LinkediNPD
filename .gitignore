@@ -1,0 +1,14 @@
+# Secrets and per-user settings
+.env
+config/config.yml
+
+# Runtime state: the Chromium profile in here holds a live LinkedIn session,
+# so it must never reach the repo.
+state/
+*.db
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/

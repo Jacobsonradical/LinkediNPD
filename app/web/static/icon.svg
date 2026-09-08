@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>LinkediNPD</title>
+  <!-- The "in" wordmark with the dot over the i replaced by a thumbs-up.
+       The thumb is drawn deliberately chunky: at favicon size any thin detail
+       turns to mush, so it is built from two solid shapes and nothing else. -->
+  <rect width="256" height="256" rx="52" fill="#0A66C2"/>
+
+  <!-- thumbs-up standing in for the dot over the i -->
+  <g transform="translate(38,26)">
+    <rect x="0" y="21" width="14" height="27" rx="3.5" fill="#fff"/>
+    <path d="M19 21c5-4 8-10 8-16a5 5 0 0 1 10 0c0 4-1 8-3 11h13a6 6 0 0 1 6 7l-4 17a7 7 0 0 1-7 5H19z" fill="#fff"/>
+  </g>
+
+  <!-- i stem -->
+  <rect x="52" y="104" width="30" height="104" rx="6" fill="#fff"/>
+  <!-- n -->
+  <path d="M108 208V104h29v14c8-11 20-17 34-17 26 0 45 17 45 48v59h-30v-54c0-17-8-26-22-26-15 0-26 10-26 29v51z" fill="#fff"/>
+</svg>

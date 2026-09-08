@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkediNPD</title>
+<link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+<style>
+  :root {
+    --bg: #12151a; --panel: #1a1f27; --line: #2a313c;
+    --ink: #e8eaed; --dim: #97a0ad; --accent: #0a66c2;
+    --ok: #3fb950; --warn: #d29922; --err: #f85149;
+  }
+  * { box-sizing: border-box; }
+  /* The hidden attribute must win over any display rule below, or a banner
+     styled display:flex shows up no matter what the status says. */
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+           border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -.2px; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px;
+          background: #243041; color: var(--dim); text-transform: uppercase;
+          letter-spacing: .5px; }
+  .pill.running { background: #10331c; color: var(--ok); }
+  .pill.waiting { background: #33290d; color: var(--warn); }
+  .pill.paused  { background: #33290d; color: var(--warn); }
+  .pill.needs_login, .pill.error { background: #3a1416; color: var(--err); }
+  .hdr-btn { background: var(--accent); color: #fff; text-decoration: none; font-weight: 600;
+             font-size: 12.5px; padding: 6px 12px; border-radius: 7px; white-space: nowrap; }
+  .hdr-btn:hover { background: #0b5aa8; }
+
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+             color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+
+  .stat { display: flex; justify-content: space-between; align-items: baseline;
+          padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .stat:last-child { border-bottom: 0; }
+  .stat .k { color: var(--dim); font-size: 13px; }
+  .stat .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button { font: inherit; font-weight: 500; padding: 9px 10px; border-radius: 7px;
+           border: 1px solid var(--line); background: #232a34; color: var(--ink);
+           cursor: pointer; }
+  button:hover { background: #2c3441; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  #log { height: 46vh; overflow-y: auto; font-family: ui-monospace, Menlo, Consolas,
+         monospace; font-size: 12.5px; }
+  .ev { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid #20262f; }
+  .ev .t { color: #6b7684; white-space: nowrap; }
+  .ev.like  .m { color: var(--ok); font-weight: 600; }
+  /* Decision lines are multi-line on purpose: one field per line. */
+  .ev.decide .m { color: #b8c0cc; white-space: pre-line; }
+  .ev.decide { padding: 6px 0; }
+  .ev.warn  .m { color: var(--warn); }
+  .ev.error .m { color: var(--err); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 5px 0; border-bottom: 1px solid #20262f; vertical-align: top; }
+  td.when { color: var(--dim); white-space: nowrap; width: 72px; }
+  td.why  { color: var(--dim); font-size: 12px; }
+  .empty { color: var(--dim); font-style: italic; padding: 6px 0; }
+  a { color: var(--accent); }
+
+  #settings .row { display: flex; align-items: center; justify-content: space-between;
+                   gap: 10px; padding: 5px 0; }
+  #settings .row.check { justify-content: flex-start; }
+  #settings .row > span { color: var(--dim); font-size: 13px; }
+  #settings select, #settings input[type=number], #settings textarea {
+    font: inherit; font-size: 13px; color: var(--ink); background: #232a34;
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  #settings select { max-width: 200px; }
+  #settings textarea { width: 100%; resize: vertical; font-family: ui-monospace, Menlo, monospace;
+                       font-size: 12.5px; }
+  .hint { color: var(--dim); font-size: 12px; margin: 8px 0 0; }
+  .hint code { background: #232a34; padding: 1px 5px; border-radius: 4px; }
+  #settings .lists { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #settings .lists label, #settings .pacing label { display: block; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .5px; color: var(--dim); }
+  #settings .lists textarea, #settings .pacing input { display: block; margin-top: 4px; }
+  #settings .pacing { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  #settings .pacing input { width: 100%; }
+  #settings .save { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  #save-msg { font-size: 12.5px; color: var(--dim); }
+  #save-msg.ok { color: var(--ok); } #save-msg.err { color: var(--err); }
+
+  .notice { margin: 16px 20px -4px; padding: 13px 16px; border-radius: 10px;
+            background: #3a1416; border: 1px solid #6b2b2f; }
+  .notice span { color: var(--dim); display: block; margin-top: 3px; }
+  .notice code { background: #232a34; padding: 1px 5px; border-radius: 4px; }
+  #login-banner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+                  margin: 16px 20px -4px; padding: 13px 16px; border-radius: 10px;
+                  background: #33290d; border: 1px solid #6b5314; }
+  #login-banner span { color: var(--dim); }
+  #login-link { background: var(--accent); color: #fff; text-decoration: none;
+                padding: 8px 16px; border-radius: 7px; font-weight: 600;
+                margin-left: auto; white-space: nowrap; }
+  #login-link:hover { background: #0b5aa8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LinkediNPD</h1>
+  <span class="pill" id="status">connecting</span>
+  <span class="pill" id="mode"></span>
+  <span style="flex:1"></span>
+  <span class="pill" id="detail"></span>
+  <a id="btn-view" class="hdr-btn" target="_blank" rel="noopener" hidden>Live browser view &#8599;</a>
+</header>
+
+<div id="no-token" class="notice" hidden>
+  <strong>This page was opened without its access token.</strong>
+  <span>Use the dashboard link printed by <code>docker compose logs linkedinpd</code> &mdash;
+  it ends in <code>#token=&hellip;</code> &mdash; or the "Open the dashboard" button on
+  <a href="http://127.0.0.1:6080/">the login page</a>.</span>
+</div>
+<div id="down" class="notice" hidden>
+  <strong>Cannot reach the container.</strong>
+  <span>It is stopped or restarting. Start it with <code>docker compose up -d</code>; this page reconnects by itself.</span>
+</div>
+
+<div id="login-banner" hidden>
+  <div>
+    <strong>LinkedIn is not logged in.</strong>
+    <span>Open the container's browser and sign in once &mdash; the session is then remembered.</span>
+  </div>
+  <a id="login-link" target="_blank" rel="noopener">Log in to LinkedIn</a>
+</div>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>Likes</h2>
+      <div class="stat"><span class="k">Today</span><span class="v" id="today">-</span></div>
+      <div class="stat"><span class="k">All time</span><span class="v" id="total">-</span></div>
+      <div class="stat"><span class="k">Next like in</span><span class="v" id="eta">-</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Controls</h2>
+      <div class="controls">
+        <button id="btn-pause">Pause</button>
+        <button id="btn-resume" class="primary">Resume</button>
+        <button id="btn-skip">Like now</button>
+      </div>
+      <p class="hint">Pause is the everyday stop. To shut the whole thing down,
+        <code>docker compose stop</code>.</p>
+    </div>
+
+    <div class="card" id="settings">
+      <h2>Settings</h2>
+      <label class="row">
+        <span>Mode</span>
+        <select id="cfg-mode">
+          <option value="all">all &mdash; like everything</option>
+          <option value="except">except &mdash; everything but the block lists</option>
+          <option value="stalk">stalk &mdash; only the allow lists</option>
+        </select>
+      </label>
+      <label class="row check">
+        <input type="checkbox" id="cfg-skip"> <span>Skip suggested / promoted posts</span>
+      </label>
+      <label class="row check">
+        <input type="checkbox" id="cfg-paused"> <span>Start paused after a restart</span>
+      </label>
+      <p class="hint">One name per line. Matched as a case-insensitive substring,
+        so <code>Peter</code> catches <code>Peter Smith</code>.</p>
+      <div class="lists">
+        <label>Posters &mdash; allow<textarea id="cfg-poster-allow" rows="3"></textarea></label>
+        <label>Posters &mdash; block<textarea id="cfg-poster-block" rows="3"></textarea></label>
+        <label>Likers &mdash; allow<textarea id="cfg-liker-allow" rows="3"></textarea></label>
+        <label>Likers &mdash; block<textarea id="cfg-liker-block" rows="3"></textarea></label>
+      </div>
+      <div class="pacing">
+        <label>Min minutes<input type="number" id="cfg-min" min="1"></label>
+        <label>Max minutes<input type="number" id="cfg-max" min="1"></label>
+        <label>Per day<input type="number" id="cfg-cap" min="1"></label>
+      </div>
+      <div class="save">
+        <button id="btn-save" class="primary">Save settings</button>
+        <span id="save-msg"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recently liked</h2>
+      <table id="recent"><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Live events</h2>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// The token arrives in the URL fragment so it never lands in a server log or
+// a Referer header. Keep it out of the visible address bar afterwards.
+const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+const $ = (id) => document.getElementById(id);
+
+let nextActionAt = null;
+const seenEvents = new Set();
+
+function fmtClock(ts) {
+  return new Date(ts * 1000).toLocaleTimeString();
+}
+
+function addEvent(ev) {
+  if (seenEvents.has(ev.id)) return;
+  seenEvents.add(ev.id);
+
+  const log = $("log");
+  // Only auto-scroll when the user is already at the bottom, so reading back
+  // through history is not constantly interrupted.
+  const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+
+  const row = document.createElement("div");
+  row.className = "ev " + ev.level;
+  row.innerHTML = `<span class="t">${fmtClock(ev.created_at)}</span><span class="m"></span>`;
+  row.querySelector(".m").textContent = ev.message;
+  log.appendChild(row);
+
+  while (log.children.length > 500) log.removeChild(log.firstChild);
+  if (stick) log.scrollTop = log.scrollHeight;
+}
+
+function applyStatus(s) {
+  $("status").textContent = s.status.replace("_", " ");
+  $("status").className = "pill " + s.status;
+  $("mode").textContent = "mode: " + s.mode;
+  $("detail").textContent = s.detail || "";
+  $("today").textContent = s.likes_today + " / " + s.max_likes_per_day;
+  $("total").textContent = s.total_likes;
+
+  // The login link carries the VNC password, so noVNC connects on its own and
+  // there is no second password to type. Only shown while actually logged out.
+  const needsLogin = s.status === "needs_login" && !!s.novnc_url;
+  $("login-banner").hidden = !needsLogin;
+  // An <a> with no href is inert, so there is no way to open a copy of this
+  // page without its token by clicking too early.
+  if (needsLogin) $("login-link").href = s.novnc_url; else $("login-link").removeAttribute("href");
+
+  // The live view of the container's browser is useful at any time, not just
+  // for logging in - it is how you watch the thing actually work.
+  $("btn-view").hidden = !s.novnc_url;
+  if (s.novnc_url) $("btn-view").href = s.novnc_url;
+
+  nextActionAt = s.next_action_at;
+  $("btn-pause").disabled = s.paused;
+  $("btn-resume").disabled = !s.paused;
+
+  const body = $("recent").querySelector("tbody");
+  body.innerHTML = "";
+  if (!s.recent_likes.length) {
+    body.innerHTML = '<tr><td class="empty">Nothing liked yet.</td></tr>';
+  }
+  for (const like of s.recent_likes) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td class="when"></td><td><div class="who"></div><div class="why"></div></td>';
+    tr.querySelector(".when").textContent = fmtClock(like.liked_at);
+    tr.querySelector(".who").textContent = like.author || "(unknown)";
+    tr.querySelector(".why").textContent = like.reason || "";
+    body.appendChild(tr);
+  }
+}
+
+// Countdown ticks locally so it stays smooth between status pushes.
+setInterval(() => {
+  if (!nextActionAt) { $("eta").textContent = "-"; return; }
+  const left = Math.max(0, Math.round(nextActionAt - Date.now() / 1000));
+  const m = String(Math.floor(left / 60)).padStart(2, "0");
+  const s = String(left % 60).padStart(2, "0");
+  $("eta").textContent = `${m}:${s}`;
+}, 500);
+
+let failures = 0;
+
+function connect() {
+  if (!token) {
+    $("no-token").hidden = false;
+    $("status").textContent = "no token";
+    $("status").className = "pill error";
+    return;
+  }
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+
+  ws.onopen = () => { failures = 0; $("down").hidden = true; };
+  ws.onmessage = (msg) => {
+    const packet = JSON.parse(msg.data);
+    if (packet.type === "event") addEvent(packet.data);
+    if (packet.type === "status") applyStatus(packet.data);
+  };
+  ws.onclose = () => {
+    $("status").textContent = "disconnected";
+    $("status").className = "pill error";
+    // Whatever we knew is stale now - a "not logged in" banner left over from
+    // before a restart is worse than no banner.
+    $("login-banner").hidden = true;
+    $("detail").textContent = "reconnecting...";
+    // A single drop is a restart; a run of them means the container is down.
+    if (++failures >= 3) $("down").hidden = false;
+    nextActionAt = null;
+    setTimeout(connect, 3000);
+  };
+}
+
+async function control(action) {
+  const res = await fetch(`/api/control/${action}`, {
+    method: "POST",
+    headers: { "X-Token": token },
+  });
+  if (res.ok) applyStatus(await res.json());
+}
+
+$("btn-pause").onclick  = () => control("pause");
+$("btn-resume").onclick = () => control("resume");
+$("btn-skip").onclick   = () => control("skip");
+
+// --- settings -------------------------------------------------------------
+const lines = (id) => $(id).value.split("\n").map((v) => v.trim()).filter(Boolean);
+
+function fillSettings(c) {
+  $("cfg-mode").value = c.filters.mode;
+  $("cfg-skip").checked = c.filters.skip_suggested;
+  $("cfg-paused").checked = c.browser.start_paused;
+  $("cfg-poster-allow").value = c.filters.poster_allow.join("\n");
+  $("cfg-poster-block").value = c.filters.poster_block.join("\n");
+  $("cfg-liker-allow").value  = c.filters.liker_allow.join("\n");
+  $("cfg-liker-block").value  = c.filters.liker_block.join("\n");
+  $("cfg-min").value = Math.round(c.pacing.min_seconds_between_likes / 60);
+  $("cfg-max").value = Math.round(c.pacing.max_seconds_between_likes / 60);
+  $("cfg-cap").value = c.pacing.max_likes_per_day;
+}
+
+async function loadSettings() {
+  const res = await fetch("/api/config", { headers: { "X-Token": token } });
+  if (res.ok) fillSettings(await res.json());
+}
+
+async function saveSettings() {
+  const msg = $("save-msg");
+  msg.className = ""; msg.textContent = "Saving...";
+  // Only the fields on the panel are sent; the server keeps its defaults for
+  // anything else (browser size, pass cooldowns) so they cannot be clobbered.
+  const body = {
+    filters: {
+      mode: $("cfg-mode").value,
+      skip_suggested: $("cfg-skip").checked,
+      poster_allow: lines("cfg-poster-allow"),
+      poster_block: lines("cfg-poster-block"),
+      liker_allow:  lines("cfg-liker-allow"),
+      liker_block:  lines("cfg-liker-block"),
+    },
+    browser: { start_paused: $("cfg-paused").checked },
+    pacing: {
+      min_seconds_between_likes: Number($("cfg-min").value) * 60,
+      max_seconds_between_likes: Number($("cfg-max").value) * 60,
+      max_likes_per_day: Number($("cfg-cap").value),
+    },
+  };
+  const res = await fetch("/api/config", {
+    method: "POST",
+    headers: { "X-Token": token, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    fillSettings(await res.json());
+    msg.className = "ok"; msg.textContent = "Saved. Applies from the next post.";
+  } else {
+    const err = await res.json().catch(() => ({}));
+    msg.className = "err"; msg.textContent = err.detail || `Error ${res.status}`;
+  }
+}
+$("btn-save").onclick = saveSettings;
+
+connect();
+loadSettings();
+</script>
+</body>
+</html>
