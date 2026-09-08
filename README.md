@@ -1,6 +1,5 @@
-<img src="assets/icons/icon-128.png" alt="LinkediNPD" width="96" align="right">
-
-# LinkediNPD
+<p align="center"><img src="assets/icons/icon-128.png" alt="LinkediNPD" width="112"></p>
+<h1 align="center">LinkediNPD</h1>
 
 Automatically likes the posts in your LinkedIn feed, slowly and on your terms.
 
