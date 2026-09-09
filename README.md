@@ -175,53 +175,24 @@ docker compose down -v         # also delete the LinkedIn session and history
 
 ---
 
-## When it stops liking things
-
-**Status stuck on `needs login`.** LinkedIn signed the session out. Redo the
-noVNC login step.
-
-**Status is `error` saying "no posts matched any selector".** LinkedIn changed
-its markup again. The event log line lists what the page actually contains.
-For the full picture, fetch the live page HTML from the dashboard API:
-
-```bash
-curl -H "X-Token: <your token>" http://127.0.0.1:8765/api/debug/page > feed.html
-```
-
-Every selector is in `config/selectors.yml` with a comment on what it targets;
-each entry is a list and the first match wins, so you can add a new selector
-without deleting the old one. The file is mounted into the container, so a
-`docker compose restart` picks the change up with no rebuild.
-
-The feed uses build-hashed class names that change on every LinkedIn deploy,
-so never anchor on a class. Use `data-view-name` and `aria-*` attributes — the
-accessibility layer is the one thing a hashed build cannot scramble.
-
-**Nothing gets liked in `stalk` mode.** That mode likes nothing until somebody
-matches. Check the names in your allow lists against how they actually appear
-in your feed, and remember matching is on substrings.
-
-**Chromium keeps crashing.** Raise `shm_size` in `docker-compose.yml`.
-
----
-
 ## Security
 
 The point of this section is that the container holds a live, logged-in
 LinkedIn session. That is worth protecting.
 
-- **Both ports bind to `127.0.0.1` only.** Neither the dashboard nor noVNC is
-  reachable from your network. Do not "fix" this by changing it to `0.0.0.0`.
+- **Both ports bind to `127.0.0.1` only.** Neither the dashboard nor the live
+  browser view is reachable from your network. Do not "fix" this by changing
+  it to `0.0.0.0`.
 - **The dashboard needs a token** on every API call. It is generated on first
   run, stored in the volume at `0600`, and lives in the URL fragment so it never
   reaches a server log or a `Referer` header. A malicious page in your browser
   can send requests to localhost but cannot read the responses, so it cannot
   learn the token or forge a call.
-- **noVNC has its own generated password**, and the VNC server itself listens
-  only inside the container. The password is carried in the links the
-  dashboard hands you, so there is nothing to type — it still matters, because
-  a WebSocket is not covered by the same-origin policy and without it any page
-  you visited could drive that browser.
+- **The live browser view has its own generated password**, and the screen
+  server behind it listens only inside the container. The password is carried
+  in the links the dashboard hands you, so there is nothing to type — it still
+  matters, because a WebSocket is not covered by the same-origin policy and
+  without it any page you visited could drive that browser.
 - **No LinkedIn credentials are ever stored.** There is no password field
   anywhere in this project. You log in by hand and only the resulting session
   cookie lives in the Docker volume.
@@ -257,13 +228,3 @@ config/
   config.yml     your settings
   selectors.yml  LinkedIn selectors, patch here when the site changes
 ```
-
----
-
-## A word of warning
-
-Automating LinkedIn is against their User Agreement. The realistic risk is that
-the account gets restricted. The slow pacing, the daily cap and the randomised
-intervals exist to keep this looking like a person who checks their feed a few
-times a day, but nobody can promise you anything. Use it on an account you can
-afford to lose access to, and leave the pacing alone.
