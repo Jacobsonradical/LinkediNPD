@@ -13,7 +13,7 @@ import random
 import time
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError, async_playwright
 
 from . import feed
 from .filters import decide
@@ -213,8 +213,10 @@ class Engine:
             try:
                 await self._run_browser()
             except Exception as exc:
+                if self._stopping:
+                    break
                 self.status = ERROR
-                self.detail = f"Browser failed to start: {str(exc).splitlines()[0][:120]}"
+                self.detail = f"Browser session failed: {str(exc).splitlines()[0][:120]}"
                 self.next_action_at = None
                 self.store.log(
                     "Browser failed: " + str(exc).splitlines()[0][:300]
@@ -264,31 +266,26 @@ class Engine:
                 locale=cfg.browser.locale,
                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
             )
-            page = context.pages[0] if context.pages else await context.new_page()
-            self._page = page
-
-            # Load the feed once straight away, even if we start paused.
-            # Otherwise the noVNC window shows an about:blank tab, which reads
-            # as "broken" rather than "waiting", and there is nothing to log
-            # in to either. Loading a page likes nothing.
             try:
-                await page.goto(feed.FEED_URL, wait_until="domcontentloaded", timeout=60000)
-            except Exception as exc:
-                self.store.log(f"Initial feed load failed: {exc}", "warn")
+                page = context.pages[0] if context.pages else await context.new_page()
+                self._page = page
 
-            try:
+                # Load the feed even when paused so the login window is ready.
+                # A slow load can still leave a usable page; other failures
+                # must reach run() so it can replace the browser session.
+                try:
+                    await page.goto(feed.FEED_URL, wait_until="domcontentloaded", timeout=60000)
+                except PlaywrightTimeoutError as exc:
+                    self.store.log(f"Initial feed load timed out: {exc}", "warn")
+
                 while not self._stopping:
                     await self._wait_while_paused()
                     if self._stopping:
                         break
 
-                    try:
-                        await self._one_pass(page)
-                    except Exception as exc:
-                        self.status = ERROR
-                        self.detail = str(exc)
-                        self.store.log(f"Pass failed: {exc}", "error")
-                        await self._sleep(120, WAITING, "Recovering from an error")
+                    # Retrying a crashed tab never repairs it. Let run() back
+                    # off and reopen the persistent profile after cleanup.
+                    await self._one_pass(page)
             finally:
                 self.next_action_at = None
                 self._page = None
