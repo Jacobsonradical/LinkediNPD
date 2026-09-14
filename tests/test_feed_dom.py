@@ -169,9 +169,11 @@ async def test_scroll_feed_actually_moves_the_page(page):
 
 
 @pytest.mark.asyncio
-async def test_scroll_feed_reports_false_only_at_a_real_end(page):
+async def test_scroll_feed_reports_false_only_at_a_real_end(page, monkeypatch):
     """At the true bottom it must return False - after being patient about it."""
     await page.evaluate("() => window.scrollTo(0, document.documentElement.scrollHeight)")
+    from app import feed
+    monkeypatch.setattr(feed, "SCROLL_WAIT_SECONDS", 0.6)
     assert await scroll_feed(page, SELECTORS, 600) is False
 
 

@@ -371,8 +371,10 @@ class Engine:
         self.store.log("Feed loaded, scanning from the top", "info")
         seen_this_pass: set[str] = set()
         stuck_scrolls = 0
+        scan_logged = False
 
-        for scroll_index in range(cfg.pacing.max_scrolls_per_pass):
+        scroll_index = 0
+        while scroll_index < cfg.pacing.max_scrolls_per_pass:
             if self._stopping:
                 return
             await self._wait_while_paused()
@@ -390,12 +392,15 @@ class Engine:
             self.status = RUNNING
             self.detail = f"Scanning (scroll {scroll_index + 1})"
             posts = await feed.scan_posts(page, cfg.selectors)
+            if any(post.urn not in seen_this_pass for _, post in posts):
+                stuck_scrolls = 0
 
             # Once per pass, say what the scan actually saw. Without this the
             # log just shows scroll counters ticking, which tells you nothing
             # when the selectors are half-working.
-            if scroll_index == 0:
+            if not scan_logged:
                 self.store.log(feed.describe_scan(posts, self.config.filters), "info")
+                scan_logged = True
 
             liked_one = False
             for container, post in posts:
@@ -454,23 +459,30 @@ class Engine:
 
             if not liked_one:
                 # Nothing worth liking in view, so go further down the feed.
+                self.detail = "Waiting for the feed to scroll or load more posts"
                 moved = await feed.scroll_feed(
                     page, cfg.selectors, int(cfg.browser.viewport_height * 0.85)
                 )
                 if not moved:
-                    # scroll_feed already waited ~10s for a lazy load; four
-                    # of those in a row is about 40s of nothing, which is a
-                    # real end of feed rather than a slow fetch.
+                    # Each check gives the loader 30 seconds. Rescan after
+                    # the last wait before declaring the feed exhausted.
                     stuck_scrolls += 1
                     if stuck_scrolls >= 4:
+                        latest = await feed.scan_posts(page, cfg.selectors)
+                        if any(post.urn not in seen_this_pass for _, post in latest):
+                            stuck_scrolls = 0
+                            continue
                         self.store.log(
-                            "The feed is not scrolling any further; ending this pass",
+                            "No scroll progress or new posts after four loading checks; ending this pass",
                             "warn",
                         )
                         break
                 else:
                     stuck_scrolls = 0
+                    scroll_index += 1
                 await page.wait_for_timeout(random.uniform(2500, 5000))
+            else:
+                scroll_index += 1
 
         # Feed exhausted for this pass: rest, then start again from the top.
         wait = random.uniform(

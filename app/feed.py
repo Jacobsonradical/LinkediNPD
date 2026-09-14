@@ -8,6 +8,7 @@ without a browser.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 
@@ -398,74 +399,118 @@ def describe_scan(posts: list[tuple], filters) -> str:
     return f"Scan saw {len(posts)} posts: {parts or 'nothing'}"
 
 
-async def _scroll_metrics(page) -> tuple[int, int]:
-    return await page.evaluate(
-        "() => [Math.round(window.scrollY), document.documentElement.scrollHeight]"
+# Four unsuccessful checks in the engine give a slow feed about two minutes.
+SCROLL_WAIT_SECONDS = 30.0
+
+_SCROLL_STATE_JS = """({selectors, amount}) => {
+    let cards = [];
+    for (const selector of selectors.post_container || []) {
+        cards = [...document.querySelectorAll(selector)];
+        if (cards.length) break;
+    }
+    const documentRoot = document.scrollingElement || document.documentElement;
+    let root = documentRoot;
+    // Find the actual scrolling ancestor, including when the first card is
+    // above the viewport. A tall non-scrolling wrapper is not a scroll root.
+    for (let node = cards[0]?.parentElement; node; node = node.parentElement) {
+        const overflow = getComputedStyle(node).overflowY;
+        if (/(auto|scroll|overlay)/.test(overflow) &&
+            node.scrollHeight > node.clientHeight + 1) {
+            root = node;
+            break;
+        }
+    }
+    const rect = root === documentRoot
+        ? {left: 0, top: 0, right: innerWidth, bottom: innerHeight}
+        : root.getBoundingClientRect();
+    let left = Math.max(0, rect.left), right = Math.min(innerWidth, rect.right);
+    let top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+    // Prefer a visible card so the wheel lands on the feed, not a sidebar.
+    for (const card of cards) {
+        const box = card.getBoundingClientRect();
+        if (box.bottom > top && box.top < bottom && box.right > left && box.left < right) {
+            left = Math.max(left, box.left);
+            right = Math.min(right, box.right);
+            top = Math.max(top, box.top);
+            bottom = Math.min(bottom, box.bottom);
+            break;
+        }
+    }
+    const posts = cards.map(card => {
+        for (const attr of selectors.post_urn_attributes || []) {
+            if (card.getAttribute(attr)) return card.getAttribute(attr);
+        }
+        const ancestor = selectors.post_id_ancestor
+            ? card.closest(selectors.post_id_ancestor) : null;
+        // Avoid reaction counters and other mutable card text as identifiers.
+        return ancestor?.id || card.id || card.querySelector(
+            'a[href*="/feed/update/"], a[href*="/posts/"]')?.href || '';
+    });
+    if (amount) root.scrollBy(0, amount);
+    return {
+        y: Math.round(root.scrollTop), height: root.scrollHeight,
+        posts: posts.filter(Boolean), count: cards.length,
+        point: right > left && bottom > top
+            ? [(left + right) / 2, (top + bottom) / 2] : null
+    };
+}"""
+
+
+async def _scroll_state(page, selectors: dict, amount: int = 0) -> dict:
+    return await page.evaluate(_SCROLL_STATE_JS, {"selectors": selectors, "amount": amount})
+
+
+def _scroll_progress(before: dict, after: dict) -> bool:
+    return (
+        after["y"] > before["y"]
+        or after["height"] > before["height"]
+        or after["count"] > before["count"]
+        or bool(set(after["posts"]) - set(before["posts"]))
     )
 
 
 async def scroll_feed(page, selectors: dict, amount: int) -> bool:
-    """Scroll the feed down by `amount` pixels. True if there was more to see.
+    """Scroll the real feed container and wait for movement or new cards.
 
-    Two things make this fiddlier than a wheel event:
-
-    - A wheel event lands wherever the pointer is, and Playwright's pointer
-      starts at (0, 0) - the corner of the nav bar - so the first version of
-      this scrolled nothing while reporting success. Park the pointer over
-      the feed first, with a JS scroll as a fallback.
-    - At the bottom of what is loaded, LinkedIn takes a few seconds to fetch
-      the next batch, during which nothing moves. So a dead scroll is given
-      time and retried before we believe it, and the page growing taller
-      counts as progress even when the scroll position did not change.
+    Virtualised lists can replace posts without changing their height or card
+    count. Track identities too, and poll during the loading grace period.
     """
-    y0, h0 = await _scroll_metrics(page)
-
-    target = await _first_locator(page, selectors.get("post_container", []))
-    box = None
-    if target is not None:
-        try:
-            box = await target.bounding_box()
-        except Exception:
-            box = None
-    if box:
-        await page.mouse.move(box["x"] + box["width"] / 2, min(box["y"] + 40, 600))
-
-    for attempt in range(3):
-        await page.mouse.wheel(0, amount)
-        await page.wait_for_timeout(500)
-        y1, h1 = await _scroll_metrics(page)
-        if y1 != y0 or h1 > h0:
-            return True
-
-        if attempt == 0:
-            # The feed may live in its own scroll container; nudge that too.
-            await page.evaluate(
-                "(dy) => { window.scrollBy(0, dy); "
-                "const el = document.querySelector('[data-testid=\"mainFeed\"]'); "
-                "let n = el; while (n && n !== document.body) { "
-                "  if (n.scrollHeight > n.clientHeight + 10) { n.scrollBy(0, dy); break; } "
-                "  n = n.parentElement; } }",
-                amount,
-            )
-            await page.wait_for_timeout(500)
-            y1, h1 = await _scroll_metrics(page)
-            if y1 != y0 or h1 > h0:
+    before = await _scroll_state(page, selectors)
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + SCROLL_WAIT_SECONDS
+    next_nudge = 0.0
+    while True:
+        now = loop.time()
+        if now >= next_nudge:
+            state = await _scroll_state(page, selectors)
+            if _scroll_progress(before, state):
                 return True
+            if state["point"]:
+                await page.mouse.move(*state["point"])
+                await page.mouse.wheel(0, amount)
+                await page.wait_for_timeout(250)
+                if _scroll_progress(before, await _scroll_state(page, selectors)):
+                    return True
+            # Also nudge the same root we measure, for layouts where the wheel
+            # lands on an overlay or another non-scrolling element.
+            if _scroll_progress(before, await _scroll_state(page, selectors, amount)):
+                return True
+            button = page.get_by_role("button", name=re.compile(selectors.get(
+                "load_more_button_text", "show more|load more|more feed|new posts"), re.I))
+            try:
+                if await button.count() > 0 and await button.first.is_visible():
+                    await button.first.click(timeout=3000)
+            except Exception:
+                pass
+            next_nudge = loop.time() + 4
 
-        # Some feed versions end with a button rather than loading on scroll.
-        button = page.get_by_role("button", name=re.compile(selectors.get(
-            "load_more_button_text", "show more|load more|more feed|new posts"), re.I))
-        try:
-            if await button.count() > 0 and await button.first.is_visible():
-                await button.first.click(timeout=3000)
-        except Exception:
-            pass
-
-        # Give the lazy loader a chance before trying again.
-        await page.wait_for_timeout(4000)
-
-    y1, h1 = await _scroll_metrics(page)
-    return y1 != y0 or h1 > h0
+        after = await _scroll_state(page, selectors)
+        if _scroll_progress(before, after):
+            return True
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return False
+        await page.wait_for_timeout(min(500, remaining * 1000))
 
 
 _OVERLAY_JS = """([title, sub]) => {
